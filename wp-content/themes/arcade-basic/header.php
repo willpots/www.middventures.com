@@ -55,7 +55,9 @@ $space_class = '';
                 <div class="title-card">
     				<div id="site-meta">
     					<h1 id="site-title">
-    						<a href="<?php echo esc_url( home_url() ); ?>" title="<?php echo esc_attr( get_bloginfo( 'name', 'display' ) ); ?>" rel="home"><?php bloginfo( 'name' ); ?></a>
+    						<a href="<?php echo esc_url( home_url() ); ?>" title="<?php echo esc_attr( get_bloginfo( 'name', 'display' ) ); ?>" rel="home">
+                  <img src="<?php bloginfo('stylesheet_directory'); ?>/images/header-logo.jpg" alt="">
+                </a>
     					</h1>
 
     					<?php if ( $bavotasan_theme_options['header_icon'] ) { ?>
