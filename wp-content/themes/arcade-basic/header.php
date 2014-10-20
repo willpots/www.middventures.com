@@ -56,7 +56,7 @@ $space_class = '';
     				<div id="site-meta">
     					<h1 id="site-title">
     						<a href="<?php echo esc_url( home_url() ); ?>" title="<?php echo esc_attr( get_bloginfo( 'name', 'display' ) ); ?>" rel="home">
-                  <img src="<?php bloginfo('stylesheet_directory'); ?>/images/header-logo.jpg" alt="">
+                  <img src="<?php bloginfo('stylesheet_directory'); ?>/images/header-logo.png" alt="">
                 </a>
     					</h1>
 
