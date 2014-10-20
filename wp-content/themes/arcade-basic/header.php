@@ -56,7 +56,7 @@ $space_class = '';
     				<div id="site-meta">
     					<h1 id="site-title">
     						<a href="<?php echo esc_url( home_url() ); ?>" title="<?php echo esc_attr( get_bloginfo( 'name', 'display' ) ); ?>" rel="home">
-                  <img src="<?php bloginfo('site_url'); ?>/images/header-logo.png" alt="">
+                  <img src="<?php echo esc_url( home_url() ); ?>/wp-content/themes/arcade-basic/library/images/header-logo.png" alt="">
                 </a>
     					</h1>
 
