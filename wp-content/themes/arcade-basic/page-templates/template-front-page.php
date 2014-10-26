@@ -1,6 +1,6 @@
 <?php
 /**
- * Template Name: Front Page
+ * Template Name: Front Page with no header on the post.
  *
  * Description: A front page.
  *
