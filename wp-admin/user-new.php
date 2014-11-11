@@ -31,10 +31,6 @@ Please click the following link to activate your user account:
 %%s' ), get_bloginfo( 'name' ), home_url(), wp_specialchars_decode( translate_user_role( $role['name'] ) ) );
 	}
 	add_filter( 'wpmu_signup_user_notification_email', 'admin_created_user_email' );
-
-	function admin_created_user_subject( $text ) {
-		return sprintf( __( '[%s] Your site invite' ), get_bloginfo( 'name' ) );
-	}
 }
 
 if ( isset($_REQUEST['action']) && 'adduser' == $_REQUEST['action'] ) {
@@ -400,7 +396,7 @@ if ( apply_filters( 'show_password_fields', true ) ) : ?>
 		<input name="pass2" type="password" id="pass2" autocomplete="off" />
 		<br />
 		<div id="pass-strength-result"><?php _e('Strength indicator'); ?></div>
-		<p class="description indicator-hint"><?php echo _wp_password_hint(); ?></p>
+		<p class="description indicator-hint"><?php echo _wp_get_password_hint(); ?></p>
 		</td>
 	</tr>
 	<tr>

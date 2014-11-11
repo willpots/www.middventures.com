@@ -406,8 +406,6 @@ function is_comment_feed() {
  *
  * @see WP_Query::is_front_page()
  * @since 2.5.0
- * @uses is_home()
- * @uses get_option()
  *
  * @return bool True, if front of site.
  */
@@ -2213,7 +2211,7 @@ class WP_Query {
 	 * @since 4.0.0
 	 * @access protected
 	 *
-	 * @global wpdb $wpdb WordPress database access abstraction object.
+	 * @global wpdb $wpdb WordPress database abstraction object.
 	 *
 	 * @param string $orderby Alias for the field to order by.
 	 * @return string|bool Table-prefixed value to used in the ORDER clause. False otherwise.
@@ -2357,7 +2355,6 @@ class WP_Query {
 	 *
 	 * @since 1.5.0
 	 * @access public
-	 * @uses do_action_ref_array() Calls 'pre_get_posts' hook before retrieving posts.
 	 *
 	 * @return array List of posts.
 	 */
@@ -3692,8 +3689,6 @@ class WP_Query {
 	 *
 	 * @since 1.5.0
 	 * @access public
-	 * @uses $post
-	 * @uses do_action_ref_array() Calls 'loop_start' if loop has just started
 	 */
 	public function the_post() {
 		global $post;
@@ -3710,7 +3705,7 @@ class WP_Query {
 			do_action_ref_array( 'loop_start', array( &$this ) );
 
 		$post = $this->next_post();
-		setup_postdata($post);
+		$this->setup_postdata( $post );
 	}
 
 	/**
@@ -3720,7 +3715,6 @@ class WP_Query {
 	 *
 	 * @since 1.5.0
 	 * @access public
-	 * @uses do_action_ref_array() Calls 'loop_end' if loop is ended
 	 *
 	 * @return bool True if posts are available, false if end of loop.
 	 */
@@ -3778,7 +3772,6 @@ class WP_Query {
 	 * @since 2.2.0
 	 * @access public
 	 * @global object $comment Current comment.
-	 * @uses do_action() Calls 'comment_loop_start' hook when first comment is processed.
 	 */
 	public function the_comment() {
 		global $comment;
@@ -4280,8 +4273,6 @@ class WP_Query {
 	 * Otherwise the same as @see WP_Query::is_home()
 	 *
 	 * @since 3.1.0
-	 * @uses is_home()
-	 * @uses get_option()
 	 *
 	 * @return bool True, if front of site.
 	 */
@@ -4545,6 +4536,68 @@ class WP_Query {
 	}
 
 	/**
+	 * Set up global post data.
+	 *
+	 * @since 4.1.0
+	 *
+	 * @param object $post Post data.
+	 * @return bool True when finished.
+	 */
+	public function setup_postdata( $post ) {
+		global $id, $authordata, $currentday, $currentmonth, $page, $pages, $multipage, $more, $numpages;
+
+		$id = (int) $post->ID;
+
+		$authordata = get_userdata($post->post_author);
+
+		$currentday = mysql2date('d.m.y', $post->post_date, false);
+		$currentmonth = mysql2date('m', $post->post_date, false);
+		$numpages = 1;
+		$multipage = 0;
+		$page = $this->get( 'page' );
+		if ( ! $page )
+			$page = 1;
+
+		// Force full post content when viewing the permalink for the $post, or
+		// when on an RSS feed. Otherwise respect the 'more' tag.
+		if ( $post->ID === get_queried_object_id() && ( $this->is_page() || $this->is_single() ) ) {
+			$more = 1;
+		} else if ( $this->is_feed() ) {
+			$more = 1;
+		} else {
+			$more = 0;
+		}
+
+		$content = $post->post_content;
+		if ( false !== strpos( $content, '<!--nextpage-->' ) ) {
+			if ( $page > 1 )
+				$more = 1;
+			$content = str_replace( "\n<!--nextpage-->\n", '<!--nextpage-->', $content );
+			$content = str_replace( "\n<!--nextpage-->", '<!--nextpage-->', $content );
+			$content = str_replace( "<!--nextpage-->\n", '<!--nextpage-->', $content );
+			// Ignore nextpage at the beginning of the content.
+			if ( 0 === strpos( $content, '<!--nextpage-->' ) )
+				$content = substr( $content, 15 );
+			$pages = explode('<!--nextpage-->', $content);
+			$numpages = count($pages);
+			if ( $numpages > 1 )
+				$multipage = 1;
+		} else {
+			$pages = array( $post->post_content );
+		}
+
+		/**
+		 * Fires once the post data has been setup.
+		 *
+		 * @since 2.8.0
+		 *
+		 * @param WP_Post &$post The Post object (passed by reference).
+		 */
+		do_action_ref_array( 'the_post', array( &$post ) );
+
+		return true;
+	}
+	/**
 	 * After looping through a nested query, this function
 	 * restores the $post global to the current post in this query.
 	 *
@@ -4566,8 +4619,9 @@ class WP_Query {
  * Attempts to find the current slug from the past slugs.
  *
  * @since 2.1.0
+ *
  * @uses $wp_query
- * @uses $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  *
  * @return null If no link is found, null is returned.
  */
@@ -4626,51 +4680,14 @@ function wp_old_slug_redirect() {
  * @since 1.5.0
  *
  * @param object $post Post data.
- * @uses do_action_ref_array() Calls 'the_post'
  * @return bool True when finished.
  */
 function setup_postdata( $post ) {
-	global $id, $authordata, $currentday, $currentmonth, $page, $pages, $multipage, $more, $numpages;
+	global $wp_query;
 
-	$id = (int) $post->ID;
-
-	$authordata = get_userdata($post->post_author);
-
-	$currentday = mysql2date('d.m.y', $post->post_date, false);
-	$currentmonth = mysql2date('m', $post->post_date, false);
-	$numpages = 1;
-	$multipage = 0;
-	$page = get_query_var('page');
-	if ( ! $page )
-		$page = 1;
-	if ( is_single() || is_page() || is_feed() )
-		$more = 1;
-	$content = $post->post_content;
-	if ( false !== strpos( $content, '<!--nextpage-->' ) ) {
-		if ( $page > 1 )
-			$more = 1;
-		$content = str_replace( "\n<!--nextpage-->\n", '<!--nextpage-->', $content );
-		$content = str_replace( "\n<!--nextpage-->", '<!--nextpage-->', $content );
-		$content = str_replace( "<!--nextpage-->\n", '<!--nextpage-->', $content );
-		// Ignore nextpage at the beginning of the content.
-		if ( 0 === strpos( $content, '<!--nextpage-->' ) )
-			$content = substr( $content, 15 );
-		$pages = explode('<!--nextpage-->', $content);
-		$numpages = count($pages);
-		if ( $numpages > 1 )
-			$multipage = 1;
-	} else {
-		$pages = array( $post->post_content );
+	if ( ! empty( $wp_query ) && $wp_query instanceof WP_Query ) {
+		return $wp_query->setup_postdata( $post );
 	}
 
-	/**
-	 * Fires once the post data has been setup.
-	 *
-	 * @since 2.8.0
-	 *
-	 * @param WP_Post &$post The Post object (passed by reference).
-	 */
-	do_action_ref_array( 'the_post', array( &$post ) );
-
-	return true;
+	return false;
 }

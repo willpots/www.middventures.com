@@ -14,13 +14,24 @@
 	<?php twentyfifteen_post_thumbnail(); ?>
 
 	<header class="entry-header">
-		<?php the_title( sprintf( '<h1 class="entry-title"><a href="%s" rel="bookmark">', esc_url( twentyfifteen_get_link_url() ) ), '</a></h1>' ); ?>
+		<?php
+			if ( is_single() ) :
+				the_title( sprintf( '<h1 class="entry-title"><a href="%s">', esc_url( twentyfifteen_get_link_url() ) ), '</a></h1>' );
+			else :
+				the_title( sprintf( '<h2 class="entry-title"><a href="%s">', esc_url( twentyfifteen_get_link_url() ) ), '</a></h2>' );
+			endif;
+		?>
 	</header>
 	<!-- .entry-header -->
 
 	<div class="entry-content">
-		<?php the_content( __( 'Continue reading <span class="meta-nav">&rarr;</span>', 'twentyfifteen' ) ); ?>
 		<?php
+			/* translators: %s: Name of current post */
+			the_content( sprintf(
+				esc_html__( 'Continue reading %s', 'twentyfifteen' ),
+				the_title( '<span class="screen-reader-text">', '</span>', false )
+			) );
+
 			wp_link_pages( array(
 				'before'      => '<div class="page-links"><span class="page-links-title">' . esc_html__( 'Pages:', 'twentyfifteen' ) . '</span>',
 				'after'       => '</div>',

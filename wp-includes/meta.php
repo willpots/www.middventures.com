@@ -15,7 +15,8 @@
  * Add metadata for the specified object.
  *
  * @since 2.9.0
- * @uses $wpdb WordPress database object for queries.
+ *
+ * @global wpdb $wpdb WordPress database abstraction object.
  *
  * @param string $meta_type Type of object metadata is for (e.g., comment, post, or user)
  * @param int $object_id ID of the object metadata is for
@@ -128,7 +129,8 @@ function add_metadata($meta_type, $object_id, $meta_key, $meta_value, $unique = 
  * ID and metadata key, the metadata will be added.
  *
  * @since 2.9.0
- * @uses $wpdb WordPress database object for queries.
+ *
+ * @global wpdb $wpdb WordPress database abstraction object.
  *
  * @param string $meta_type Type of object metadata is for (e.g., comment, post, or user)
  * @param int $object_id ID of the object metadata is for
@@ -194,8 +196,10 @@ function update_metadata($meta_type, $object_id, $meta_key, $meta_value, $prev_v
 		}
 	}
 
-	if ( ! $meta_id = $wpdb->get_var( $wpdb->prepare( "SELECT $id_column FROM $table WHERE meta_key = %s AND $column = %d", $meta_key, $object_id ) ) )
+	$meta_ids = $wpdb->get_col( $wpdb->prepare( "SELECT $id_column FROM $table WHERE meta_key = %s AND $column = %d", $meta_key, $object_id ) );
+	if ( empty( $meta_ids ) ) {
 		return add_metadata($meta_type, $object_id, $meta_key, $passed_value);
+	}
 
 	$_meta_value = $meta_value;
 	$meta_value = maybe_serialize( $meta_value );
@@ -208,33 +212,38 @@ function update_metadata($meta_type, $object_id, $meta_key, $meta_value, $prev_v
 		$where['meta_value'] = $prev_value;
 	}
 
-	/**
-	 * Fires immediately before updating metadata of a specific type.
-	 *
-	 * The dynamic portion of the hook, $meta_type, refers to the meta
-	 * object type (comment, post, or user).
-	 *
-	 * @since 2.9.0
-	 *
-	 * @param int    $meta_id    ID of the metadata entry to update.
-	 * @param int    $object_id  Object ID.
-	 * @param string $meta_key   Meta key.
-	 * @param mixed  $meta_value Meta value.
-	 */
-	do_action( "update_{$meta_type}_meta", $meta_id, $object_id, $meta_key, $_meta_value );
-
-	if ( 'post' == $meta_type )
+	foreach ( $meta_ids as $meta_id ) {
 		/**
-		 * Fires immediately before updating a post's metadata.
+		 * Fires immediately before updating metadata of a specific type.
+		 *
+		 * The dynamic portion of the hook, $meta_type, refers to the meta
+		 * object type (comment, post, or user).
 		 *
 		 * @since 2.9.0
 		 *
-		 * @param int    $meta_id    ID of metadata entry to update.
+		 * @param int    $meta_id    ID of the metadata entry to update.
 		 * @param int    $object_id  Object ID.
 		 * @param string $meta_key   Meta key.
 		 * @param mixed  $meta_value Meta value.
 		 */
-		do_action( 'update_postmeta', $meta_id, $object_id, $meta_key, $meta_value );
+		do_action( "update_{$meta_type}_meta", $meta_id, $object_id, $meta_key, $_meta_value );
+	}
+
+	if ( 'post' == $meta_type ) {
+		foreach ( $meta_ids as $meta_id ) {
+			/**
+			 * Fires immediately before updating a post's metadata.
+			 *
+			 * @since 2.9.0
+			 *
+			 * @param int    $meta_id    ID of metadata entry to update.
+			 * @param int    $object_id  Object ID.
+			 * @param string $meta_key   Meta key.
+			 * @param mixed  $meta_value Meta value.
+			 */
+			do_action( 'update_postmeta', $meta_id, $object_id, $meta_key, $meta_value );
+		}
+	}
 
 	$result = $wpdb->update( $table, $data, $where );
 	if ( ! $result )
@@ -242,24 +251,12 @@ function update_metadata($meta_type, $object_id, $meta_key, $meta_value, $prev_v
 
 	wp_cache_delete($object_id, $meta_type . '_meta');
 
-	/**
-	 * Fires immediately after updating metadata of a specific type.
-	 *
-	 * The dynamic portion of the hook, $meta_type, refers to the meta
-	 * object type (comment, post, or user).
-	 *
-	 * @since 2.9.0
-	 *
-	 * @param int    $meta_id    ID of updated metadata entry.
-	 * @param int    $object_id  Object ID.
-	 * @param string $meta_key   Meta key.
-	 * @param mixed  $meta_value Meta value.
-	 */
-	do_action( "updated_{$meta_type}_meta", $meta_id, $object_id, $meta_key, $_meta_value );
-
-	if ( 'post' == $meta_type ) {
+	foreach ( $meta_ids as $meta_id ) {
 		/**
-		 * Fires immediately after updating a post's metadata.
+		 * Fires immediately after updating metadata of a specific type.
+		 *
+		 * The dynamic portion of the hook, $meta_type, refers to the meta
+		 * object type (comment, post, or user).
 		 *
 		 * @since 2.9.0
 		 *
@@ -268,7 +265,23 @@ function update_metadata($meta_type, $object_id, $meta_key, $meta_value, $prev_v
 		 * @param string $meta_key   Meta key.
 		 * @param mixed  $meta_value Meta value.
 		 */
-		do_action( 'updated_postmeta', $meta_id, $object_id, $meta_key, $meta_value );
+		do_action( "updated_{$meta_type}_meta", $meta_id, $object_id, $meta_key, $_meta_value );
+	}
+
+	if ( 'post' == $meta_type ) {
+		foreach ( $meta_ids as $meta_id ) {
+			/**
+			 * Fires immediately after updating a post's metadata.
+			 *
+			 * @since 2.9.0
+			 *
+			 * @param int    $meta_id    ID of updated metadata entry.
+			 * @param int    $object_id  Object ID.
+			 * @param string $meta_key   Meta key.
+			 * @param mixed  $meta_value Meta value.
+			 */
+			do_action( 'updated_postmeta', $meta_id, $object_id, $meta_key, $meta_value );
+		}
 	}
 
 	return true;
@@ -278,7 +291,8 @@ function update_metadata($meta_type, $object_id, $meta_key, $meta_value, $prev_v
  * Delete metadata for the specified object.
  *
  * @since 2.9.0
- * @uses $wpdb WordPress database object for queries.
+ *
+ * @global wpdb $wpdb WordPress database abstraction object.
  *
  * @param string $meta_type Type of object metadata is for (e.g., comment, post, or user)
  * @param int $object_id ID of the object metadata is for
@@ -478,8 +492,13 @@ function get_metadata($meta_type, $object_id, $meta_key = '', $single = false) {
 		$meta_cache = $meta_cache[$object_id];
 	}
 
-	if ( !$meta_key )
+	if ( ! $meta_key ) {
+		foreach ( $meta_cache as &$meta_values ) {
+			$meta_values = array_map( 'maybe_unserialize', $meta_values );
+		}
+
 		return $meta_cache;
+	}
 
 	if ( isset($meta_cache[$meta_key]) ) {
 		if ( $single )
@@ -576,9 +595,6 @@ function get_metadata_by_mid( $meta_type, $meta_id ) {
  *
  * @since 3.3.0
  *
- * @uses get_metadata_by_mid() Calls get_metadata_by_mid() to fetch the meta key, value
- *		and object_id of the given meta_id.
- *
  * @param string $meta_type Type of object metadata is for (e.g., comment, post, or user)
  * @param int $meta_id ID for a specific meta row
  * @param string $meta_value Metadata value
@@ -670,9 +686,6 @@ function update_metadata_by_mid( $meta_type, $meta_id, $meta_value, $meta_key = 
  *
  * @since 3.3.0
  *
- * @uses get_metadata_by_mid() Calls get_metadata_by_mid() to fetch the meta key, value
- *		and object_id of the given meta_id.
- *
  * @param string $meta_type Type of object metadata is for (e.g., comment, post, or user)
  * @param int $meta_id ID for a specific meta row
  * @return bool True on successful delete, false on failure.
@@ -757,7 +770,8 @@ function delete_metadata_by_mid( $meta_type, $meta_id ) {
  * Update the metadata cache for the specified objects.
  *
  * @since 2.9.0
- * @uses $wpdb WordPress database object for queries.
+ *
+ * @global wpdb $wpdb WordPress database abstraction object.
  *
  * @param string $meta_type Type of object metadata is for (e.g., comment, post, or user)
  * @param int|array $object_ids array or comma delimited list of object IDs to update cache for
@@ -1367,7 +1381,6 @@ class WP_Meta_Query {
 		$clause['alias'] = $alias;
 
 		// Next, build the WHERE clause.
-		$where = '';
 
 		// meta_key.
 		if ( array_key_exists( 'key', $clause ) ) {
@@ -1501,7 +1514,8 @@ class WP_Meta_Query {
  * Retrieve the name of the metadata table for the specified object type.
  *
  * @since 2.9.0
- * @uses $wpdb WordPress database object for queries.
+ *
+ * @global wpdb $wpdb WordPress database abstraction object.
  *
  * @param string $type Type of object to get metadata table for (e.g., comment, post, or user)
  * @return mixed Metadata table name, or false if no metadata table exists
